@@ -1,0 +1,1 @@
+@extends('layouts.app')\n@section('content')\n<div>Contenu home</div>\n@endsection

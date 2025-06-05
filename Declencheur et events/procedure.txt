@@ -1,0 +1,58 @@
+DELIMITER $$
+
+CREATE DEFINER=root@localhost PROCEDURE send_reservation_expiration_notifications_proc ()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE res_id BIGINT;
+    DECLARE cli_id BIGINT;
+
+    DECLARE cur CURSOR FOR
+        SELECT id, client_id
+        FROM reservations
+        WHERE statut = 'active'
+          AND date_fin BETWEEN NOW() AND NOW() + INTERVAL 24 HOUR;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur;
+
+    read_loop: LOOP
+        FETCH cur INTO res_id, cli_id;
+
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        IF res_id IS NULL OR cli_id IS NULL THEN
+            ITERATE read_loop;
+        END IF;
+
+        INSERT INTO notifications(
+            id,
+            type,
+            notifiable_type,
+            notifiable_id,
+            data,
+            created_at,
+            updated_at
+        ) VALUES (
+            UUID(),
+            'App\\Notifications\\ReservationExpirationNotification',
+            'App\\Models\\Utilisateur',
+            cli_id,
+            JSON_OBJECT(
+                'type', 'reservation_expiration',
+                'reservation_id', res_id,
+                'message', CONCAT('Réservation se termine dans ', TIMESTAMPDIFF(HOUR, NOW(), (SELECT date_fin FROM reservations WHERE id = res_id)), 'h'),
+                'url', CONCAT('/reservations/', res_id)
+            ),
+            NOW(),
+            NOW()
+        );
+
+    END LOOP;
+
+    CLOSE cur;
+END$$
+
+DELIMITER ;

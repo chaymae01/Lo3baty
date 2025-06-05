@@ -1,0 +1,153 @@
+        /* Custom Styles */
+        :root {    
+            --primary-color: #e63a28;
+            --secondary-color: #e63a28;
+            --accent-color: #FFE66D;
+        }
+        
+    *{font-family: 'Sour Gummy', sans-serif;}
+        /* Calendar Styles */
+        #calendar {
+            min-height: 400px;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Price Calculation */
+        #priceCalculation {
+            background-color: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        #priceCalculation p {
+            margin-bottom: 0.5rem;
+        }
+
+        /* Form Styles */
+        #reservationForm button {
+            transition: background-color 0.2s ease;
+        }
+
+        #reservationForm button:hover {
+            background-color: #e63a28;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid.grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            #calendar {
+                min-height: 300px;
+            }
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        .toy-card {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .toy-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .price-tag {
+            background-color: var(--accent-color);
+            color: #000000;
+        }
+        
+        /* Premium badge styles */
+        .premium-badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #f6d365;
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(253, 160, 133, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 10px rgba(253, 160, 133, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(253, 160, 133, 0);
+            }
+        }
+
+        /* Swiper custom styles */
+        .swiper-slide {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f9f9f9;
+            position: relative;
+        }
+        
+        .swiper-container {
+            position: relative;
+        }
+        
+          .swiper-button-next,
+    .swiper-button-prev {
+        background-color: rgba(255, 255, 255, 0.8);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .swiper-button-next:hover,
+    .swiper-button-prev:hover {
+        background-color: white;
+        transform: scale(1.1);
+    }
+    
+    .swiper-button-next::after,
+    .swiper-button-prev::after {
+        font-size: 15px;
+        color: #e63a28;}
+        #priceCalculation {
+    transition: all 0.3s ease;
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+#priceCalculation:not(.hidden) {
+    opacity: 1;
+    height: auto;
+    overflow: visible;
+}

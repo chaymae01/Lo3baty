@@ -1,0 +1,40 @@
+body{
+    background-color: white;
+}
+
+.facility-item .facility-icon span {
+    transition: all 0.3s ease;
+}
+
+.facility-item:hover .facility-icon span {
+    background-color: white;
+}
+
+.facility-text {
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.facility-text::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+    transform: translate(25%, 25%);
+    opacity: 0;
+    transition: all 0.5s ease;
+}
+
+.facility-item:hover .facility-text::before {
+    opacity: 1;
+    transform: translate(0, 0);
+}
+
+.group:hover .group-hover\:scale-105 { transform: scale(1.05); }
+.sticky-top { transition: all 0.3s ease-in-out; }
+.spinner { animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }

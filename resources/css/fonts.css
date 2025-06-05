@@ -1,0 +1,9 @@
+@font-face {
+     font-family: 'Pluto';
+     src: url('./fonts/pluto/PlutoRegular.woff2') format('woff2'),
+          url('./fonts/pluto/PlutoRegular.woff') format('woff');
+     font-weight: 400;
+     font-style: normal;
+     font-display: swap;
+   }
+   

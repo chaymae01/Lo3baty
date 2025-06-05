@@ -1,0 +1,254 @@
+-- Trigger pour les nouvelles annonces
+DROP TRIGGER IF EXISTS `nouvelle_annonce_notification`;
+DELIMITER $$
+CREATE TRIGGER `nouvelle_annonce_notification` AFTER INSERT ON `annonces` FOR EACH ROW 
+BEGIN
+    -- Déclarations doivent être en premier
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE user_id BIGINT;
+    DECLARE objet_nom VARCHAR(255);
+    DECLARE prix_formatted VARCHAR(20);
+    DECLARE dates_dispo VARCHAR(100);
+    DECLARE user_cursor CURSOR FOR SELECT id FROM utilisateurs;
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+    
+    -- Instructions exécutables
+    SELECT nom INTO objet_nom FROM objets WHERE id = NEW.objet_id;
+    SET prix_formatted = FORMAT(NEW.prix_journalier, 2);
+    SET dates_dispo = CONCAT('Du ', DATE_FORMAT(NEW.date_debut, '%d/%m'), ' au ', DATE_FORMAT(NEW.date_fin, '%d/%m'));
+
+    OPEN user_cursor;
+    user_loop: LOOP
+        FETCH user_cursor INTO user_id;
+        IF done THEN
+            LEAVE user_loop;
+        END IF;
+
+        INSERT INTO notifications (
+            id,
+            type,
+            notifiable_type,
+            notifiable_id,
+            data,
+            read_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            UUID(),
+            'App\\Notifications\\NouvelleAnnonceNotification',
+            'App\\Models\\Utilisateur',
+            user_id,
+            JSON_OBJECT(
+                'type', 'nouvelle_annonce',
+                'annonce_id', NEW.id,
+                'message', CONCAT('✨ Nouveau jouet disponible ! "', objet_nom, '" à ', prix_formatted, 'Dhs/jour'),
+                'details', JSON_OBJECT(
+                    'objet', objet_nom,
+                    'prix', CONCAT(prix_formatted, 'Dhs/jour'),
+                    'disponibilite', dates_dispo,
+                    'premium', IF(NEW.premium = 1, 'Oui', 'Non')
+                ),
+                'url', CONCAT('http://localhost:8000/annonces/', NEW.id),
+                'created_at', DATE_FORMAT(NOW(), '%Y-%m-%d %H:%i:%s')
+            ),
+            NULL,
+            NOW(),
+            NOW()
+        );
+    END LOOP;
+    CLOSE user_cursor;
+END$$
+DELIMITER ;
+
+-- Trigger pour les mises à jour d'annonces
+DROP TRIGGER IF EXISTS `nouvelle_annonce_update`;
+DELIMITER $$
+CREATE TRIGGER `nouvelle_annonce_update` AFTER UPDATE ON `annonces` FOR EACH ROW 
+BEGIN
+    -- Déclarations
+    DECLARE objet_nom VARCHAR(255);
+    DECLARE nouveau_prix VARCHAR(20);
+    DECLARE ancien_prix VARCHAR(20);
+    DECLARE message_principal VARCHAR(255);
+    DECLARE type_changement VARCHAR(50);
+    
+    -- Instructions exécutables
+    SELECT nom INTO objet_nom FROM objets WHERE id = NEW.objet_id;
+    SET nouveau_prix = FORMAT(NEW.prix_journalier, 2);
+    SET ancien_prix = FORMAT(OLD.prix_journalier, 2);
+    
+    -- Déterminer le type de changement
+    IF OLD.prix_journalier != NEW.prix_journalier THEN
+        SET type_changement = 'prix';
+        SET message_principal = CONCAT('💰 Prix modifié ! "', objet_nom, '" : ', ancien_prix, 'Dhs → ', nouveau_prix, 'Dhs');
+    ELSE
+        SET type_changement = 'autre';
+        SET message_principal = CONCAT('✏️ Annonce modifiée : "', objet_nom, '"');
+    END IF;
+
+    IF (OLD.prix_journalier != NEW.prix_journalier OR
+        OLD.statut != NEW.statut OR
+        OLD.premium != NEW.premium) THEN
+
+        INSERT INTO notifications (
+            id,
+            type,
+            notifiable_type,
+            notifiable_id,
+            data,
+            read_at,
+            created_at,
+            updated_at
+        )
+        SELECT
+            UUID(),
+            'App\\Notifications\\AnnonceModifieeNotification',
+            'App\\Models\\Utilisateur',
+            u.id,
+            JSON_OBJECT(
+                'type', 'annonce_modifiee',
+                'annonce_id', NEW.id,
+                'message', message_principal,
+                'details', JSON_OBJECT(
+                    'changement', type_changement,
+                    'nouveau_prix', CONCAT(nouveau_prix, '€'),
+                    'ancien_prix', CONCAT(ancien_prix, '€'),
+                    'dates', JSON_OBJECT(
+                        'debut', DATE_FORMAT(NEW.date_debut, '%d/%m/%Y'),
+                        'fin', DATE_FORMAT(NEW.date_fin, '%d/%m/%Y')
+                    ),
+                    'premium', IF(NEW.premium = 1, 'Oui', 'Non')
+                ),
+                'url', CONCAT('http://localhost:8000/annonces/', NEW.id),
+                'urgence', IF(type_changement = 'prix' AND NEW.prix_journalier < OLD.prix_journalier, 'haute', 'normale')
+            ),
+            NULL,
+            NOW(),
+            NOW()
+        FROM utilisateurs u
+        WHERE u.role = 'client';
+    END IF;
+END$$
+DELIMITER ;
+
+
+
+
+
+
+DROP TRIGGER IF EXISTS `after_reclamation_update`;
+DELIMITER $$
+CREATE TRIGGER `after_reclamation_update` AFTER UPDATE ON `reclamations` FOR EACH ROW 
+BEGIN
+    IF (NEW.reponse IS NOT NULL AND (OLD.reponse IS NULL OR NEW.reponse != OLD.reponse)) THEN
+        INSERT INTO notifications (
+            id,
+            type,
+            notifiable_type,
+            notifiable_id,
+            data,
+            read_at,
+            created_at,
+            updated_at
+        ) VALUES (
+            UUID(),
+            'App\\Notifications\\ReclamationRepondueNotification',
+            'App\\Models\\Utilisateur',
+            NEW.utilisateur_id,
+            JSON_OBJECT(
+                'url', CONCAT('http://localhost:8000/reclamations/', NEW.id),
+                'type', 'reclamation_reponse',
+                'sujet', NEW.sujet,
+                'message', CONCAT('Réponse à votre réclamation portant sur "', NEW.sujet, '"'),
+                'reponse', NEW.reponse,
+                'reclamation_id', NEW.id
+            ),
+            NULL,
+            NOW(),
+            NOW()
+        );
+    END IF;
+END
+$$
+DELIMITER ;
+
+
+
+
+
+DELIMITER $$
+
+CREATE PROCEDURE send_reservation_expiration_notifications_proc()
+BEGIN
+    DECLARE done INT DEFAULT FALSE;
+    DECLARE res_id BIGINT;
+    DECLARE cli_id BIGINT;
+
+    DECLARE cur CURSOR FOR 
+        SELECT id, client_id 
+        FROM reservations 
+        WHERE statut = 'active'
+          AND date_fin BETWEEN NOW() AND NOW() + INTERVAL 24 HOUR;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+    OPEN cur;
+
+    read_loop: LOOP
+        FETCH cur INTO res_id, cli_id;
+
+        IF done THEN
+            LEAVE read_loop;
+        END IF;
+
+        IF res_id IS NULL OR cli_id IS NULL THEN
+            ITERATE read_loop;
+        END IF;
+
+        INSERT INTO notifications(
+            id, 
+            type, 
+            notifiable_type, 
+            notifiable_id, 
+            data, 
+            created_at, 
+            updated_at
+        ) VALUES (
+            UUID(),
+            'App\\Notifications\\ReservationExpirationNotification',
+            'App\\Models\\Utilisateur',
+            cli_id,
+            JSON_OBJECT(
+                'type', 'reservation_expiration',
+                'reservation_id', res_id,
+                'message', CONCAT('Réservation se termine dans ', TIMESTAMPDIFF(HOUR, NOW(), (SELECT date_fin FROM reservations WHERE id = res_id)), 'h'),
+                'url', CONCAT('/reservations/', res_id)
+            ),
+            NOW(),
+            NOW()
+        );
+
+    END LOOP;
+
+    CLOSE cur;
+END$$
+
+DELIMITER 
+
+
+SET GLOBAL event_scheduler = ON;
+
+DROP EVENT IF EXISTS send_reservation_notifications_event;
+
+-- Créer l'événement planifié pour s'exécuter toutes les 3 heures
+CREATE EVENT send_reservation_notifications_event
+ON SCHEDULE EVERY 3 HOUR
+DO
+    CALL send_reservation_expiration_notifications_proc();
+
+
+
+
+
+
+
